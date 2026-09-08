@@ -1,0 +1,76 @@
+{
+  "admission_mode": "preregistered_method_degraded",
+  "case": "MZ_Air",
+  "control_support_bounds_c": {
+    "occupied_bounds_c": [
+      23.5,
+      26.5
+    ],
+    "unoccupied_bounds_c": [
+      20.0,
+      30.0
+    ]
+  },
+  "controller": "hierarchical-mpc",
+  "freeze_identity": "b89a2138daa2e32867768125ee84cf607927ef615c5f42065487c11b5d9e635c",
+  "hierarchy": "hourly_building_coordinator_and_15_minute_zone_mpc",
+  "model_identity": "4e38b27be0332fa0cff90252c091ddce03edc8f8a2b0a6e7f943feeeba991529",
+  "model_structure": "vector_arx_current_plus_four_history_four_step",
+  "physical_validation": "fresh_validation_method_degraded",
+  "pmv_robust_margin": 0.16,
+  "provenance": {
+    "refit_candidate_report_sha256": "0474971f3040f009d0f8f2f6c72819097c574e3d699be52ece53b228bbda3147",
+    "refit_model_card_sha256": "61b95fbc5d50fc905e42c7a6041f8864e5fc87662ba6d6ceb0f160b3a7868075",
+    "refit_workspace": "outputs/baselines/mpc/refit/20260905T063755858960Z-c882b95e",
+    "source_coefficient_sha256": "b144c5b3d4713f891cb0d453eed9601a0e56f309c23b7c6a425f3b4cfd3e8194",
+    "validation_workspace": "outputs/baselines/mpc/validation/20260907T160248878360Z-45be0f3b"
+  },
+  "release_path": "models/mpc_releases/b89a2138daa2e32867768125ee84cf607927ef615c5f42065487c11b5d9e635c",
+  "robust_calibration_attestation": {
+    "robust_margin": {
+      "application": "internal_soft_comfort_band_only",
+      "calibration_episode": "episodes/validation-032-lane-0",
+      "estimator": "p95_absolute_occupied_pmv_prediction_residual",
+      "internal_comfort_band": 0.33999999999999997,
+      "order_statistic": "higher",
+      "pmv_margin": 0.16,
+      "quantile": 0.95,
+      "sample_count": 6272,
+      "scope": "case_specific_estimate_common_formula"
+    },
+    "terminal_reference": {
+      "calibration_occupancy_source": "basic_reference.disturbances[timestamp=origin+4]",
+      "runtime_owner": "effective_occupancy_forecast(step+4)",
+      "target_offset_steps": 4,
+      "terminal_occupied_zone_targets": 1568,
+      "terminal_zone_targets": 3305
+    }
+  },
+  "schema": "h3c_hierarchical_mpc_model_card",
+  "schema_version": 3,
+  "source_commit": "45be0f3bf0365d2ac5a428cf99c679ff8b28a8a6",
+  "training_week_days": 7,
+  "training_week_start_day": 192,
+  "validation": {
+    "case": "MZ_Air",
+    "checks": {
+      "diagnostic_rows": true,
+      "episode_artifacts": true,
+      "finite_peak_pmv": true,
+      "finite_reward": true,
+      "lifecycle": true,
+      "timeline_reward_and_identity": true
+    },
+    "comfort_target_met": false,
+    "eligible": false,
+    "evidence_valid": true,
+    "fallback_count": 2,
+    "model_identity": "4e38b27be0332fa0cff90252c091ddce03edc8f8a2b0a6e7f943feeeba991529",
+    "occupied_peak_absolute_pmv": 0.9,
+    "reward": -637.2344649184698,
+    "steps": 668,
+    "test_id": "11fa9bea-891c-47e4-82e0-3bb9b74fa7b2",
+    "validation_classification": "METHOD-DEGRADED"
+  },
+  "validation_classification": "METHOD-DEGRADED-VALIDATION"
+}

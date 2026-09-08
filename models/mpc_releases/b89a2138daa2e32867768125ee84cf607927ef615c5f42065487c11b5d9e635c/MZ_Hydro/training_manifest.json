@@ -1,0 +1,93 @@
+{
+  "admission_mode": "preregistered_method_degraded",
+  "case": "MZ_Hydro",
+  "freeze_identity": "b89a2138daa2e32867768125ee84cf607927ef615c5f42065487c11b5d9e635c",
+  "fresh_validation": {
+    "comfort_target_met": true,
+    "fallback_count": 0,
+    "initialize_count": 1,
+    "occupied_peak_absolute_pmv": 0.63,
+    "select_count": 1,
+    "steps": 668,
+    "stop_count": 1,
+    "test_id": "90851b8a-792d-4b58-b8fb-444c5f1f4920",
+    "warmup_days": 7
+  },
+  "identification": "preserved_real_episode_bank_and_offline_refit",
+  "model_identity": "29c1041c28a885310217777173ba7a728e24692181f06a292d861aa6dfa85413",
+  "release_path": "models/mpc_releases/b89a2138daa2e32867768125ee84cf607927ef615c5f42065487c11b5d9e635c",
+  "robust_calibration_attestation": {
+    "robust_margin": {
+      "application": "internal_soft_comfort_band_only",
+      "calibration_episode": "episodes/validation-032-lane-0",
+      "estimator": "p95_absolute_occupied_pmv_prediction_residual",
+      "internal_comfort_band": 0.36,
+      "order_statistic": "higher",
+      "pmv_margin": 0.13999999999999999,
+      "quantile": 0.95,
+      "sample_count": 1928,
+      "scope": "case_specific_estimate_common_formula"
+    },
+    "terminal_reference": {
+      "calibration_occupancy_source": "basic_reference.disturbances[timestamp=origin+4]",
+      "runtime_owner": "effective_occupancy_forecast(step+4)",
+      "target_offset_steps": 4,
+      "terminal_occupied_zone_targets": 482,
+      "terminal_zone_targets": 944
+    }
+  },
+  "schema": "h3c_hierarchical_mpc_training_manifest",
+  "schema_version": 3,
+  "source_bundle": {
+    "case": "MZ_Hydro",
+    "coefficient_sha256": "0315ee6478b573a8694a5eb2198b5187a161d6a2690ad80d1497fa89fb925930",
+    "model_identity": "29c1041c28a885310217777173ba7a728e24692181f06a292d861aa6dfa85413",
+    "refit_candidate_report_sha256": "d87e799861e7fdb204edf28502756e3af5402781818c175b716e32e34a343b21",
+    "refit_model_card_sha256": "700e6a596da608a4e019eb611f09be7c7aac78c62196fb4e0858b5d0d922c06f",
+    "robust_calibration_attestation": {
+      "robust_margin": {
+        "application": "internal_soft_comfort_band_only",
+        "calibration_episode": "episodes/validation-032-lane-0",
+        "estimator": "p95_absolute_occupied_pmv_prediction_residual",
+        "internal_comfort_band": 0.36,
+        "order_statistic": "higher",
+        "pmv_margin": 0.13999999999999999,
+        "quantile": 0.95,
+        "sample_count": 1928,
+        "scope": "case_specific_estimate_common_formula"
+      },
+      "terminal_reference": {
+        "calibration_occupancy_source": "basic_reference.disturbances[timestamp=origin+4]",
+        "runtime_owner": "effective_occupancy_forecast(step+4)",
+        "target_offset_steps": 4,
+        "terminal_occupied_zone_targets": 482,
+        "terminal_zone_targets": 944
+      }
+    }
+  },
+  "source_commit": "45be0f3bf0365d2ac5a428cf99c679ff8b28a8a6",
+  "training_output": "outputs/baselines/mpc/refit/20260905T063755858960Z-c882b95e",
+  "validation_attestation": {
+    "case": "MZ_Hydro",
+    "checks": {
+      "diagnostic_rows": true,
+      "episode_artifacts": true,
+      "finite_peak_pmv": true,
+      "finite_reward": true,
+      "lifecycle": true,
+      "timeline_reward_and_identity": true
+    },
+    "comfort_target_met": true,
+    "eligible": true,
+    "evidence_valid": true,
+    "fallback_count": 0,
+    "model_identity": "29c1041c28a885310217777173ba7a728e24692181f06a292d861aa6dfa85413",
+    "occupied_peak_absolute_pmv": 0.63,
+    "reward": -484.7567869464855,
+    "steps": 668,
+    "test_id": "90851b8a-792d-4b58-b8fb-444c5f1f4920",
+    "validation_classification": "BASELINE-READY"
+  },
+  "validation_classification": "BASELINE-READY",
+  "validation_output": "outputs/baselines/mpc/validation/20260907T160248878360Z-45be0f3b"
+}

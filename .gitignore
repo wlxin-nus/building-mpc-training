@@ -1,0 +1,19 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.uv-cache*/
+*.egg-info/
+/build/
+/dist/
+.env
+.env.*
+!.env.example
+/outputs/
+/data/
+*.log
+*.pending
+# Newly collected models require an explicit reviewed publication commit.
+/models/mpc/
