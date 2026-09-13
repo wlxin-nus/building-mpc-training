@@ -1,48 +1,74 @@
-# 独立仓库来源与验证
+# Standalone Repository Provenance and Verification
 
-## 来源
+## Source
 
-- 提取日期：2026-09-08。
-- 上游源码提交：`32524f3b3fd3861a9323226612c776b27f4b8a85`。
-- 附带模型 release：`b89a2138daa2e32867768125ee84cf607927ef615c5f42065487c11b5d9e635c`。
-- 新仓库从独立初始提交开始，不导入上游论文、Agent 或实验 Git 历史。
+- Extraction date: 2026-09-08.
+- Upstream source commit: `32524f3b3fd3861a9323226612c776b27f4b8a85`.
+- Included model release: `b89a2138daa2e32867768125ee84cf607927ef615c5f42065487c11b5d9e635c`.
+- This standalone repository starts from an independent initial commit. It does not import the
+  upstream paper, Agent, experiment, or Git history.
 
-## 保留与改变
+## Preserved and changed components
 
-七个 MPC 算法/训练/发布模块、case/MPC 配置、PMV 与占用计算保持上游内容。`provenance.json` 记录逐文件来源，文本只允许 Git 常规换行归一化。冻结 release 文件不转换换行，以保留内部证据 checksum。
+The seven MPC algorithm, training, and publication modules; the case and MPC configurations; and
+the PMV and occupancy calculations retain their upstream content. `provenance.json` records the
+source of every file. Text files permit only the ordinary line-ending normalization performed by
+Git. Frozen release files are not line-ending-normalized, preserving their internal evidence
+checksums.
 
-独立化仅改变工程边界：
+Only the software boundary changed during extraction:
 
-1. CLI 只保留 MPC 命令；移除 DRL、正式 suite、全项目报告和 LLM 命令。
-2. HTTP 模块保留上游 BOPTEST 类与其必要辅助函数，删除 LLM client。JSON 序列化辅助函数的历史名称不代表存在模型请求入口。
-3. 参考 RBC 的解释器只保留 load/validate/execute 及必要定义，不包含 Agent patch 应用和候选推导。
-4. secret 检查不再依赖 LLM runtime 配置，仍检查已配置的已知密钥值，且不打印值。
-5. 启动预检从论文工作站的硬编码解释器路径改为当前 checkout、干净 Git、锁、磁盘、数值依赖及同进程 TCP 检查。原工作站仍使用 canonical 环境。
-6. 依赖移除 Torch、DRL、Agent Framework 等非 MPC 包；实际数值库版本按现有 canonical 环境固定。
+1. The CLI retains only MPC commands. DRL, formal-suite, whole-project reporting, and LLM commands
+   were removed.
+2. The HTTP module retains the upstream BOPTEST class and its required helpers; the LLM client was
+   removed. Historical names used by JSON serialization helpers do not indicate a model-provider
+   request path.
+3. The reference RBC interpreter retains only loading, validation, execution, and the necessary
+   definitions. Agent patch application and candidate derivation are not included.
+4. Secret scanning no longer depends on LLM runtime configuration. It still checks any configured
+   values of known secret variables and never prints those values.
+5. Launch preflight no longer uses the paper workstation's hard-coded interpreter path. It checks
+   the current checkout, clean Git state, locks, disk space, numerical dependencies, and same-process
+   TCP connectivity. The original workstation continued to use its canonical environment.
+6. Torch, DRL, Agent Framework, and other non-MPC dependencies were removed. Numerical library
+   versions are pinned to those used in the existing canonical environment.
 
-未修改 ARX 系数、训练数据、ridge 选择、缩放、权重、约束、horizon、OSQP 设置、fallback、profile、PMV 或 Reward。没有进行真实训练、额外诊断或 BOPTEST 调用。
+The extraction did not change ARX coefficients, training data, ridge selection, scaling, objective
+weights, constraints, horizon, OSQP settings, fallback behavior, case profiles, PMV, or reward.
+It did not perform physical retraining, additional diagnostics, or BOPTEST calls.
 
-`configs/graphs/` 是 profile 合同要求的兼容文件；运行 MPC 不消费因果图。保留它们避免为拆分重写 profile 验证。
+`configs/graphs/` contains compatibility files required by the case-profile contract. The MPC
+runtime does not consume causal graphs. Retaining these files avoids rewriting profile validation
+solely for the extraction.
 
-## 验证范围
+## Verification scope
 
-交付检查包括现有 MPC 离线测试、拆分回归、Ruff、format、strict mypy、依赖锁、无副作用 dry plan、三案例冻结模型一致性、来源一致性及发布前 secret/文件清单检查。没有在新仓库上重新采集真实轨迹；不能把离线检查写成九条正式结果的重新认证。
+Release checks covered the existing offline MPC tests, extraction regressions, Ruff, formatting,
+strict mypy, the dependency lock, a side-effect-free dry plan, consistency of the three-case frozen
+model suite, source consistency, and pre-publication secret and file-inventory checks. No new
+physical trajectories were collected from this repository; these offline checks must not be
+described as a recertification of the nine formal results.
 
-2026-09-08 本地核验结果：
+Local verification on 2026-09-08 recorded:
 
-- Python 3.12.2 canonical 解释器；NumPy 2.2.6、SciPy 1.15.3、OSQP 1.1.3、pythermalcomfort 3.9.8。
-- **106 tests passed**；禁止测试出站的 fixture 生效。
-- Ruff check、36 文件 format check、30 source files strict mypy 均通过。
-- `uv lock --check` 和 wheel 构建通过；没有修改 canonical 环境。
-- 附带三案例 frozen-suite 全部 `case_checks=true`，`valid=true`，原 `METHOD-DEGRADED` 分类保留。
-- 57 份保留文件与上游一致；两处抽取模块的全部保留函数/类 AST 与上游一致。
-- dry training plan 不访问 BOPTEST，不产生 runtime 输出。
+- Python 3.12.2 in the canonical interpreter, with NumPy 2.2.6, SciPy 1.15.3, OSQP 1.1.3, and
+  pythermalcomfort 3.9.8.
+- **106 tests passed**, with the fixture that prohibits test-network egress enabled.
+- Ruff linting, the format check for 36 files, and strict mypy for 30 source files passed.
+- `uv lock --check` and wheel construction passed without modifying the canonical environment.
+- All three cases in the included frozen suite reported `case_checks=true` and `valid=true`; the
+  original `METHOD-DEGRADED` classifications were preserved.
+- Fifty-seven retained files matched their upstream counterparts. All retained functions and
+  classes in the two extracted modules had ASTs identical to upstream.
+- The dry training plan did not access BOPTEST or create runtime outputs.
 
-## 历史研究记录
+## Historical research records
 
-- [原始分层 MPC 预登记](hierarchical_mpc_preregistration.md)
-- [公共观测 refit 预登记](mpc_common_observation_refit_preregistration_20260905.md)
-- [第四步 forecast 可用性预登记](mpc_t_plus_4_forecast_availability_preregistration_20260905.md)
-- [新版三轮评估与版本化发布预登记](mpc_common_observation_formal_repeats_preregistration_20260907.md)
+- [Original hierarchical MPC preregistration](hierarchical_mpc_preregistration.md)
+- [Common-observation refit preregistration](mpc_common_observation_refit_preregistration_20260905.md)
+- [Fourth-step forecast-availability preregistration](mpc_t_plus_4_forecast_availability_preregistration_20260905.md)
+- [Three-repeat evaluation and versioned-publication preregistration](mpc_common_observation_formal_repeats_preregistration_20260907.md)
 
-这些文档描述上游研究的真实时间顺序与批准边界。它们包含上游工程路径或命令，不是新仓库的当前操作手册；安装和命令以本仓库 README 为准。
+These documents preserve the actual sequence and approved scope of the upstream research. They may
+contain upstream paths or commands and are not operational instructions for this standalone
+repository. Follow this repository's README for installation and current commands.

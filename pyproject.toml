@@ -8,7 +8,27 @@ version = "0.1.0"
 description = "Standalone identification, refit, and validation of hierarchical building MPC"
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
-license = { text = "MIT" }
+license = { file = "LICENSE" }
+authors = [{ name = "H3C contributors" }]
+maintainers = [{ name = "H3C contributors" }]
+keywords = [
+  "building control",
+  "BOPTEST",
+  "hierarchical control",
+  "model predictive control",
+  "system identification",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering",
+]
 dependencies = [
   "numpy==2.2.6",
   "scipy==1.15.3",
@@ -21,6 +41,11 @@ building-mpc = "h3c_baselines.cli:mpc_main"
 
 [project.optional-dependencies]
 dev = ["pytest>=8.3", "ruff>=0.6", "mypy>=1.11"]
+
+[project.urls]
+Documentation = "https://github.com/wlxin-nus/building-mpc-training#readme"
+Issues = "https://github.com/wlxin-nus/building-mpc-training/issues"
+Repository = "https://github.com/wlxin-nus/building-mpc-training"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/h3c", "src/h3c_baselines"]

@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software or its frozen MPC artifacts, please cite the software release and the
+  associated paper when its bibliographic record is available.
+title: Building MPC Training
+type: software
+authors:
+  - name: H3C contributors
+abstract: >-
+  Reproducible system identification, offline refitting, closed-loop validation, and release
+  tooling for hierarchical model predictive control in BOPTEST building cases.
+version: 0.1.0
+date-released: 2026-09-13
+license: MIT
+repository-code: https://github.com/wlxin-nus/building-mpc-training
+keywords:
+  - building control
+  - BOPTEST
+  - hierarchical control
+  - model predictive control
+  - system identification

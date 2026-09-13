@@ -1,46 +1,118 @@
 # Building MPC Training
 
-**用于建筑制冷控制的分层 MPC：数据采集、系统辨识、离线 refit、闭环验证与模型冻结。**
+Reproducible system identification, hierarchical model predictive control (MPC), closed-loop validation, and immutable model publication for three BOPTEST cooling cases.
 
-这是从 H3C 研究代码中独立提取的个人研究仓库。保留原有 MPC 数值方法与三个案例配置，去除了 LLM Agent、Prompt、Provider 调用、DRL 和论文工程。MPC 不需要 GPU，也不需要 Baseten/OpenAI/DeepSeek 密钥；**LLM 调用数、tokens 和 LLM 费用均为 0**。真实采集与闭环验证仍需要 BOPTEST 服务和相应计算资源。
+This repository is a focused extraction of the MPC baseline used by the H3C research project. It retains the numerical MPC implementation, case profiles, preregistered protocol, and a frozen three-case model release. It deliberately excludes the H3C agent, LLM providers and prompts, DRL baselines, paper source, and raw experiment workspaces.
 
-> 本次拆分不是重新训练或调参。附带模型是既有冻结模型，不应称为新仓库重新训练的结果；原始训练 episode 和九条正式评估轨迹没有上传。
+> [!IMPORTANT]
+> This is a software-and-model artifact, not a complete raw-data reproduction package. The bundled coefficients were produced before this standalone repository was created. The original episode bank and formal evaluation trajectories are not distributed here, so the frozen files can be integrity-checked against the repository manifests but cannot be refitted independently from the contents of this repository alone.
 
-## 目录导航
+> [!WARNING]
+> Two models in the bundled release are intentionally classified as `METHOD-DEGRADED`; only `MZ_Hydro` is `BASELINE-READY`. These labels describe the recorded closed-loop evidence, not file corruption. The release is not claimed to be globally optimal, fully tuned, or superior to an enhanced rule-based controller.
 
-- [快速开始](#快速开始)：安装、离线检查与 dry plan
-- [训练与验证流程](#训练与验证流程)：从头训练和历史 refit 两条路径
-- [方法与数据协议](#方法与数据协议)：模型、时间窗口、样本划分
-- [冻结模型](#冻结模型)：三案例模型身份与真实验证状态
-- [工程结构](#工程结构)、[常见问题](#常见问题)、[开发检查](#开发检查)
-- 详细说明：[数据格式](docs/data_contract.md) · [来源与拆分边界](docs/extraction.md) · [原始预登记](docs/hierarchical_mpc_preregistration.md)
+## Contents
 
-## 快速开始
+- [Quick start](#quick-start)
+- [Connect BOPTEST](#connect-boptest)
+- [Supported workflows](#supported-workflows)
+- [Method and experiment protocol](#method-and-experiment-protocol)
+- [Frozen reference release](#frozen-reference-release)
+- [Outputs and failure recovery](#outputs-and-failure-recovery)
+- [Reproducibility boundaries](#reproducibility-boundaries)
+- [Development and verification](#development-and-verification)
+- [Troubleshooting](#troubleshooting)
+- [Citation and license](#citation-and-license)
 
-### 1. 安装
+Detailed references:
 
-推荐 Python **3.12**，支持范围声明为 3.11–3.13；本次离线测试使用 Windows / Python 3.12.2。已安装 Git 和 `uv` 后：
+- [Experiment protocol](docs/EXPERIMENT_PROTOCOL.md)
+- [Data contract and reproducibility boundary](docs/data_contract.md)
+- [Extraction and verification record](docs/extraction.md)
+- [Original hierarchical MPC preregistration](docs/hierarchical_mpc_preregistration.md)
+
+## Quick start
+
+### Requirements
+
+For offline inspection and model verification:
+
+- Git;
+- Python 3.11–3.13 (Python 3.12 is recommended);
+- Windows, Linux, or macOS on a platform supported by the pinned numerical packages.
+
+For physical data collection or closed-loop validation, you additionally need an external BOPTEST deployment with the required test cases and at least six workers. A GPU, Conda, W&B, and API keys are not required.
+
+### Option A: install with `uv` (recommended)
+
+Install [`uv`](https://docs.astral.sh/uv/getting-started/installation/) with a trusted package manager or the official installer.
+
+Windows PowerShell:
 
 ```powershell
+winget install --id astral-sh.uv -e
+uv --version
+```
+
+Linux or macOS:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv --version
+```
+
+Then create the locked project environment:
+
+```text
 git clone https://github.com/wlxin-nus/building-mpc-training.git
 cd building-mpc-training
+uv python install 3.12
 uv sync --locked --extra dev
 uv run --no-sync building-mpc --help
 ```
 
-仓库采用 **完整 checkout + editable install** 工作流：配置、模型及 Git 身份与源码一起使用，不支持只搬运一个 wheel。不要把它与完整 H3C 安装进同一个新环境，因为保留的 `h3c` / `h3c_baselines` Python 命名空间会重叠。
+`uv python install` can provision Python, so a separate manual Python download is not required. The committed lockfile is the canonical dependency resolution.
 
-在原论文工作站上，继续复用 canonical 解释器，**不运行上述 `uv sync`，不创建或修改环境**：
+### Option B: standard virtual environment and `pip`
+
+Conda is not required. If Python 3.11–3.13 is already installed, use a conventional virtual environment.
+
+Windows PowerShell:
 
 ```powershell
-$python = 'D:\NUS\Paper\01-Heriachical Control\H3C_CAOL_Final_Worktree\.venv\Scripts\python.exe'
-$env:PYTHONPATH = (Join-Path (Get-Location) 'src')
-& $python -m h3c_baselines.cli mpc --help
+git clone https://github.com/wlxin-nus/building-mpc-training.git
+Set-Location building-mpc-training
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+building-mpc --help
 ```
 
-后文的 `building-mpc <命令>` 等价于 `python -m h3c_baselines.cli mpc <命令>`。
+Linux or macOS:
 
-### 2. 离线检查附带模型
+```bash
+git clone https://github.com/wlxin-nus/building-mpc-training.git
+cd building-mpc-training
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e '.[dev]'
+building-mpc --help
+```
+
+The direct numerical dependencies are pinned in `pyproject.toml`; `uv sync --locked` additionally reproduces the complete transitive lock. Use the `uv` path for archival reproduction.
+
+This project intentionally uses a full checkout with an editable installation because runtime profiles and frozen releases live outside the Python package. Do not install it into an environment that already contains the full H3C repository: both expose the `h3c` and `h3c_baselines` namespaces.
+
+### Verify the bundled model release
+
+The release identifier is:
+
+```text
+b89a2138daa2e32867768125ee84cf607927ef615c5f42065487c11b5d9e635c
+```
+
+With `uv`:
 
 ```powershell
 $release = 'b89a2138daa2e32867768125ee84cf607927ef615c5f42065487c11b5d9e635c'
@@ -48,42 +120,113 @@ uv run --no-sync building-mpc verify-frozen-suite --mpc-release $release
 uv run --no-sync building-mpc verify-model --case SZ_Air --mpc-release $release
 ```
 
-成功应返回 `valid: true`。发布状态 `METHOD-DEGRADED` 不等于文件损坏，具体含义见下文。此检查验证模型及发布证明的一致性；没有原始轨迹时，不代表重新完成历史物理回放审计。
+With an activated standard virtual environment, omit `uv run --no-sync`:
 
-### 3. 查看训练计划：不联网、不创建 test
+```text
+building-mpc verify-frozen-suite --mpc-release b89a2138daa2e32867768125ee84cf607927ef615c5f42065487c11b5d9e635c
+```
 
-```powershell
+A successful command exits with code 0 and prints JSON containing `"valid": true`. This verifies the internal identities and hashes of the published suite. It does not replay the unavailable source trajectories.
+
+### Preview the training plan safely
+
+```text
 uv run --no-sync building-mpc train --case all --workers 4 --max-fit-episodes 64
 ```
 
-返回 `execution: false`，显示案例顺序、episode 预算、warm-up 和时限。**只有显式加入 `--execute` 才执行对应操作**；其中 `refit` 的执行仍是纯离线。
+Without `--execute`, the command is a dry plan: it does not contact BOPTEST, create a test, or write runtime output. The returned JSON contains `"execution": false`.
 
-## 训练与验证流程
+## Connect BOPTEST
 
-### 路径 A：重新采集数据并训练
+BOPTEST is an external dependency and is not vendored in this repository. Follow the [official BOPTEST deployment guide](https://ibpsa.github.io/project1-boptest/docs-userguide/getting_started.html). The official service supports multiple concurrent test instances by scaling its worker service.
 
-这是新的实验，不会精确重现历史数据或模型 identity。执行前确认 BOPTEST 已启动且可从当前进程访问、案例及版本正确、仓库干净并已提交、磁盘至少剩余 1 GiB。这个空间下限是启动门禁，不是整个训练的容量保证。
+The complete training protocol uses four active collection lanes and reserves two workers, so provision at least six workers. From a compatible BOPTEST checkout, the deployment is typically started with:
+
+```text
+docker compose up --scale worker=6 web worker provision
+```
+
+The exact compose command and exposed port depend on the BOPTEST revision and local deployment. Do not change Docker solely to match an example URL. Set `BOPTEST_URL` to the credential-free HTTP(S) origin that is reachable from the Python process; ports 8000, 5000, and 80 are all possible deployment choices.
+
+Windows PowerShell example:
 
 ```powershell
-# 示例地址；替换为你实际部署的、无凭据的 BOPTEST origin。
-$env:BOPTEST_URL = 'http://127.0.0.1:5000'
+$env:BOPTEST_URL = 'http://127.0.0.1:8000'
+Invoke-RestMethod "$env:BOPTEST_URL/version"
+Invoke-RestMethod "$env:BOPTEST_URL/testcases"
+```
+
+Linux or macOS example:
+
+```bash
+export BOPTEST_URL='http://127.0.0.1:8000'
+curl -fsS "$BOPTEST_URL/version"
+curl -fsS "$BOPTEST_URL/testcases"
+```
+
+The following testcase identifiers must be available:
+
+| Repository case | BOPTEST testcase |
+|---|---|
+| `SZ_Air` | `bestest_air` |
+| `MZ_Hydro` | `multizone_office_simple_hydronic` |
+| `MZ_Air` | `multizone_office_simple_air` |
+
+The physical launcher validates the URL shape, pinned numerical dependencies, free disk space, clean committed source, execution locks, and TCP reachability. It does **not** currently certify the BOPTEST version, enumerate testcases, or measure available worker capacity. Run the API checks above before a long campaign and record the returned BOPTEST version with your results. A different BOPTEST build is a different experimental environment, even if the testcase model name is unchanged.
+
+`.env.example` is documentation only; the CLI does not automatically load `.env`. Export the variable in the process that launches the command.
+
+## Supported workflows
+
+The command surface has three deliberately separate workflows. They are not interchangeable.
+
+### 1. Inspect or consume the frozen models
+
+Use `verify-frozen-suite` and `verify-model` as shown above. The immutable coefficients, model cards, training manifests, and suite manifest are under:
+
+```text
+models/mpc_releases/<freeze-identity>/
+```
+
+This is the only workflow that is fully self-contained in the repository.
+
+### 2. Collect a new episode bank and fit new legacy models
+
+This creates a new experiment. It will not reproduce the identity of the bundled release.
+
+```powershell
+$env:BOPTEST_URL = 'http://127.0.0.1:8000'  # replace with your actual origin
 uv run --no-sync building-mpc train --case all --workers 4 --max-fit-episodes 64 --execute
 ```
 
-- 原始采集器按 **SZ Air → MZ Hydro → MZ Air** 顺序处理案例，同一案例使用 4 条独立 lane；不是同时启动三案例各 4 条。
-- checkpoint 为 8、16、32、64 条 fit episode，另有 holdout、参考及闭环验证 episode；64 不是总 episode 数。
-- 每个 lane 选择自己的 test，同一 lane 的各 episode 重新 initialize 并执行 7 天内部 warm-up；任务结束释放 test。fresh closed-loop validation 则为每案另选 fresh test。
-- 6 小时是原始采集任务的总 wall-clock 预算，不是模型保证收敛时间。
-- 成功输出 `outputs/baselines/mpc/training/<run-id>/completion.json`，模型写入 `models/mpc/<case>/`。已有模型目标会拒绝覆盖。
-- 无合格 checkpoint、基础设施故障或证据门禁失败时保留 `failure.json`，不要删除失败目录、伪造 completion 或因性能差反复补跑。
+Operational behavior:
 
-原始 CLI 可以解析较小 worker 数及 episode 上限，但历史完整协议和 refit 身份校验按 **4 workers** 设计；复现请使用上面的默认完整配置。
+- cases run sequentially in the fixed order `SZ_Air` → `MZ_Hydro` → `MZ_Air`;
+- each case uses four independent BOPTEST lanes concurrently;
+- fit evidence is evaluated at 8, 16, 32, and 64 fit episodes, with separate holdout, reference, and closed-loop episodes;
+- every lane selects its own test and reinitializes it for each episode after a seven-day internal warm-up;
+- registered BOPTEST lanes are stopped on ordinary completion and handled `Exception` paths; a failure during test selection or configuration before lane registration may require manual TestID cleanup;
+- the nominal six-hour campaign budget is checked between batches and is not a hard interrupt for an in-flight HTTP request or episode;
+- new models are written to `models/mpc/<case>/`, and an existing target is never overwritten.
 
-### 路径 B：从已有历史失败数据 bank 离线 refit
+The current CLI accepts `--case all` only. It does not launch individual cases, stream per-episode progress, or resume an interrupted physical campaign. The files named `checkpoint-008.json` through `checkpoint-064.json` are checkpoint-selection reports—not restartable model/process checkpoints.
 
-这是附带新版模型的实际来源路径。`refit` 是**保留失败训练 bank 的恢复入口**，不是任意 CSV/NPZ 拟合器，也不能把路径 A 的成功目录直接传给它。
+Successful runs end with:
 
-原始 bank 默认不随仓库分发。如果你有它的经授权副本，应完整保留其目录和证据，将其放在本仓库 `outputs/baselines/mpc/training/<source-run>/` 下；不修改原 bank，不自行补造 failure marker。
+```text
+outputs/baselines/mpc/training/<run-id>/completion.json
+```
+
+Handled training failures retain `failure.json`. A `KeyboardInterrupt`, hard process termination, or failure before the outer exception handler may not produce that file. Preserve every incomplete run directory as experimental evidence.
+
+> [!NOTE]
+> The public CLI does not currently connect a successful from-scratch training directory directly to the versioned `validate`/publication workflow. It produces the legacy `models/mpc/<case>` targets. Do not pass that successful directory to `refit`; the refit verifier intentionally rejects it.
+
+### 3. Refit an authorized preserved source bank, validate, and publish
+
+This advanced recovery workflow is how the bundled versioned models were produced. Its input is a preserved historical **failed** training bank with the expected evidence contract. That bank is not included.
+
+Place an authorized, byte-preserved copy under `outputs/baselines/mpc/training/<source-run>/`, then preview and execute:
 
 ```powershell
 $source = 'outputs/baselines/mpc/training/<source-run>'
@@ -91,124 +234,183 @@ uv run --no-sync building-mpc refit --source-run $source --align-training-window
 uv run --no-sync building-mpc refit --source-run $source --align-training-windows --execute
 ```
 
-命令返回新的 `run_dir`。以下命令中的 `<refit-run>` 和 `<validation-run>` 必须换成实际返回的目录，不能直接复制占位符运行：
+Use the returned workspace path in the subsequent commands; placeholders below are not literal paths:
 
 ```powershell
 $refit = 'outputs/baselines/mpc/refit/<refit-run>'
 uv run --no-sync building-mpc verify-refit $refit
 uv run --no-sync building-mpc validate --refit-workspace $refit --publication versioned
-
-# 真实闭环验证：最多三个案例同时运行，使用各自 fresh test。
 uv run --no-sync building-mpc validate --refit-workspace $refit --publication versioned --execute
-
 uv run --no-sync building-mpc verify-validation 'outputs/baselines/mpc/validation/<validation-run>'
 ```
 
-验证使用相同候选系数、原始四步 horizon、共同权重和缩放，不进行新的超参数搜索。`--publication versioned` 将完整三案例 suite 写入 `models/mpc_releases/<freeze_identity>/`，拒绝覆盖已有身份。验证和发布的自动衔接继承原预登记：性能降级可以被明确分类接受，执行完整性失败不可发布。
+Fresh validation may run the three cases concurrently, each with an independent test. It does not retune coefficients, objective weights, or the four-step horizon. A validated suite is published atomically to `models/mpc_releases/<freeze-identity>/`; an existing identity cannot be replaced.
 
-| 验证结果 | 含义与处理 |
+| Classification | Meaning |
 |---|---|
-| `BASELINE-READY` | 证据有效、fallback=0、occupied peak `|PMV|≤0.70` |
-| `METHOD-DEGRADED` | 证据有效，但有 fallback 或超过该舒适边界；保留不利结果并按已登记路径发布，不伪装为 clean pass |
-| 身份、轨迹、非有限值、secret 或生命周期失败 | 停止；不可发布、不覆盖原目录 |
+| `BASELINE-READY` | Evidence is valid, fallback count is zero, and occupied peak `|PMV| ≤ 0.70`. |
+| `METHOD-DEGRADED` | Evidence is valid, but fallback occurred or the comfort boundary was exceeded. The adverse result is retained and disclosed. |
+| Integrity failure | Identity, lifecycle, trajectory, finite-value, or secret checks failed. Publication is blocked. |
 
-`freeze-adverse` 是显式降级发布入口，不是放宽完整性检查的开关。原始默认路径 `models/mpc` 仍保留供兼容；**新版研究工作使用 versioned 发布**。
+`freeze-adverse` is an explicit publication route for already verified method degradation. It does not waive integrity checks.
 
-## 方法与数据协议
+## Method and experiment protocol
 
-MPC 在每次控制时求解优化问题；这里的“训练”主要是**预测模型辨识**，不是强化学习，也不是让优化器持续学习目标权重。
+In this repository, “training” means identifying the predictive model used by MPC. It is not reinforcement learning, and the optimizer does not learn objective weights online.
 
-| 组成 | 当前实现 |
+| Component | Frozen implementation |
 |---|---|
-| 预测模型 | 多输出 vector ARX：各区域空气温度 + 全楼功率 |
-| 历史 | 当前输出及前 4 个完成记录；控制量使用候选输入及前 4 个完成记录 |
-| 拟合 | 标准化 ridge regression；alpha 候选 `1e-6, 1e-4, 1e-2, 1, 100` |
-| 预测/控制时域 | 4 × 900 s = 1 h |
-| 控制结构 | 每小时楼级协调器 + 每 15 分钟区域 MPC；一次反馈协调 |
-| 舒适度 | 共享 PMV owner、内部线性近似、校准 episode 的残差裕量 |
-| 优化器 | OSQP 1.1.3；原容差、迭代预算、polishing 和 fallback 逻辑不变 |
-| 跨案例原则 | 相同算法、目标权重、缩放和规则；点位、占用与物理尺度由 profile 声明 |
+| Predictive model | Multi-output vector ARX for zone air temperatures and whole-building power |
+| History | Current output plus four completed output records; candidate control plus four completed controls |
+| Identification | Standardized ridge regression; alpha candidates `1e-6, 1e-4, 1e-2, 1, 100` |
+| Horizon | Four 900-second steps (1 hour) |
+| Hierarchy | Hourly building coordinator and 15-minute local zone MPC, with one feedback iteration |
+| Comfort | Shared PMV owner, internal linear approximation, and a calibration-derived residual margin |
+| Solver | OSQP 1.1.3 with the frozen tolerances, iteration budget, polishing, and fallback logic |
+| Physical setpoint envelope | 20–30 °C |
+| Occupied controller support | 23.5–26.5 °C |
+| Unoccupied controller support | 20–30 °C |
 
-### 三类窗口不能混为一谈
+The algorithm, objective weights, and core constraints are common across cases; physical point names, occupancy interpretation, power scales, and case-specific comfort treatment are declared in JSON profiles. See [the experiment protocol](docs/EXPERIMENT_PROTOCOL.md) for the exact values and source files.
 
-以下 day 是配置中的 BOPTEST 仿真日索引，区间右端不含；不是电脑日期。
+### Calendar windows
 
-| 案例 | 新版模型 fit/holdout/calibration 日历窗口 | fresh validation | 历史正式评估窗口 |
+Day indices are BOPTEST simulation-day indices and intervals are half-open; they are not host computer dates.
+
+| Case | Fit/holdout/calibration development window | Fresh validation | Historical formal evaluation |
 |---|---|---|---|
-| SZ Air | `[196, 203)`，7 天 | day 196 起 167 h | `[203, 210)`，168 h |
-| MZ Hydro | `[213, 218)`，5 天 | day 213 起 167 h | `[220, 225)`，120 h |
-| MZ Air | `[192, 199)`，7 天 | day 192 起 167 h | `[199, 206)`，168 h |
+| `SZ_Air` | `[196, 203)`, 7 days | day 196, 167 h | `[203, 210)`, 168 h |
+| `MZ_Hydro` | `[213, 218)`, 5 days after aligned refit | day 213, 167 h | `[220, 225)`, 120 h |
+| `MZ_Air` | `[192, 199)`, 7 days | day 192, 167 h | `[199, 206)`, 168 h |
 
-- 原始采集 bank 的各 episode 为 7 天；`--align-training-windows` 在 refit 时为 Hydro 选取 5 天前缀，其他两案保留 7 天。
-- 同一开发日历窗口有多条不同激励 episode，不是“只训练一条 7 天轨迹”。
-- holdout 不进入系数拟合，但用于 ridge 选择与 persistence 比较，所以不是完全未参与选择的最终测试集。
-- PMV 校准使用单独角色的 episode；不能把残差分位数写成全时段舒适保证。
-- fresh validation 为 668 × 900 s = 167 h，末 1 h 留给 forecast。fresh test ID 表示新物理实例，不意味着新的天气日期。
+Source collection episodes are seven days. `--align-training-windows` takes the five-day prefix for Hydronic refit and retains seven days for both air cases. Holdout trajectories are excluded from coefficient fitting but are used for ridge selection and persistence comparison; they are therefore not untouched final test data. Fresh validation uses 668 × 900 s = 167 h, leaving the final forecast hour outside the controlled interval.
 
-## 冻结模型
+## Frozen reference release
 
-附带 release：
+Bundled release:
 
 ```text
 b89a2138daa2e32867768125ee84cf607927ef615c5f42065487c11b5d9e635c
 ```
 
-完整 identity 与 provenance 在各 [model card](models/mpc_releases/b89a2138daa2e32867768125ee84cf607927ef615c5f42065487c11b5d9e635c/) 中；缩写仅方便阅读。
-
-| 案例 | 模型 identity（缩写） | fresh validation fallback | occupied peak `|PMV|` | 分类 |
+| Case | Model identity (abbreviated) | Fresh-validation fallbacks | Occupied peak `|PMV|` | Classification |
 |---|---|---:|---:|---|
-| SZ Air | `62b361…7791fd1` | 1 | 0.61 | `METHOD-DEGRADED` |
-| MZ Hydro | `29c104…a85413` | 0 | 0.63 | `BASELINE-READY` |
-| MZ Air | `4e38b2…991529` | 2 | 0.90 | `METHOD-DEGRADED` |
+| `SZ_Air` | `62b361…7791fd1` | 1 | 0.61 | `METHOD-DEGRADED` |
+| `MZ_Hydro` | `29c104…a85413` | 0 | 0.63 | `BASELINE-READY` |
+| `MZ_Air` | `4e38b2…991529` | 2 | 0.90 | `METHOD-DEGRADED` |
 
-这是固定配置、有限开发日历窗口下的代表性 MPC 基线，**不声称已充分整定、全局最优或优于 eRBC**。低预测误差也不单独证明闭环控制最优。完整三轮正式评估和 H3C 对比保留在原研究工程；本仓库聚焦训练，不包含正式 campaign launcher 或其原始证据。
+Read the model cards and suite manifest in the release directory before reporting these models. A low open-loop prediction error alone is not evidence of optimal closed-loop control.
 
-## 工程结构
+## Outputs and failure recovery
+
+Runtime outputs are intentionally Git-ignored:
 
 ```text
-configs/                       三案例 profile、MPC 配置、参考 RBC 程序
+outputs/baselines/mpc/
+  training/<run-id>/
+  refit/<run-id>/
+  validation/<run-id>/
+models/mpc/                       # newly trained legacy targets; ignored
+models/mpc_releases/<identity>/   # reviewed immutable releases
+```
+
+### Ordinary interruption or exception
+
+Training stops lanes that have been registered, and validation attempts to stop the TestID visible on its client, on ordinary completion and handled `Exception` paths. Handled failures normally write `failure.json`, but `KeyboardInterrupt`, a hard kill, or a selection/configuration failure before ownership is registered can bypass some evidence or cleanup. Retain the incomplete directory, inspect BOPTEST for an orphan TestID owned by this run, correct the external cause, and begin a new run. In-place resume is not implemented.
+
+### Power loss or forced process termination
+
+A hard kill can bypass cleanup, leaving BOPTEST tests and an execution lock. Before another run:
+
+1. confirm that no original Python process is still active;
+2. inspect BOPTEST and explicitly stop only the orphan TestIDs;
+3. inspect `.training.lock`, `.validation.lock`, or `.execution.lock` under `outputs/baselines/mpc/`;
+4. remove a lock only after verifying that its recorded PID no longer owns the campaign;
+5. preserve the incomplete run directory and start a new run.
+
+Do not blindly delete locks or stop all tests on a shared BOPTEST service. The current implementation has no persistent active-ID registry and cannot guarantee automatic recovery after a hard kill.
+
+## Reproducibility boundaries
+
+What is included:
+
+- the MPC implementation and exact direct numerical dependency pins;
+- three case profiles, common program, and solver/training configuration;
+- immutable coefficients, model cards, manifests, and internal hashes for one release;
+- preregistration records and file-level upstream provenance;
+- offline unit and fake-physical tests.
+
+What is not included:
+
+- the BOPTEST service, testcase images, or weather assets;
+- raw episode banks, refit workspaces, validation workspaces, or formal trajectories;
+- private endpoints, credentials, logs, or machine-specific environments;
+- the H3C controller, DRL baselines, or paper source.
+
+Consequently, this artifact supports source inspection, environment reconstruction, dry planning, tests, model loading, and integrity verification. Reproducing the bundled coefficients or auditing every historical KPI requires the separately governed raw evidence. See [the data contract](docs/data_contract.md).
+
+`provenance.json` binds verbatim scientific files to upstream commit `32524f3b3fd3861a9323226612c776b27f4b8a85`. The archival preregistration files preserve the original research chronology and may contain obsolete workstation commands; they are evidence, not current operating instructions. Use this README for all commands.
+
+## Repository layout
+
+```text
+configs/                         case profiles, MPC settings, common control program
+docs/                            protocol, data contract, extraction record, preregistration
+models/mpc_releases/             immutable bundled model suite
 src/h3c_baselines/mpc/
-  vector_arx.py                特征、标准化、拟合、预测及模型序列化
-  training.py                  激励采集、episode 划分、checkpoint 选择
-  refit.py                     保留 bank 的离线重建、校准与候选门禁
-  forecast.py                  公共观测与四步 forecast 对齐
-  optimizer.py                 楼级/区域级 MPC 与 fallback
-  validation.py               fresh test 闭环验证和证据核对
-  registry.py                 三案例原子、版本化模型发布
-src/h3c_baselines/cli.py        MPC 专用命令入口
-src/h3c/                       必要的物理、PMV、占用及参考程序公共模块
-models/mpc_releases/            不可覆盖的既有冻结模型
-tests/                         不出站的单元、fake-physical 和拆分回归检查
-docs/                          数据协议、来源说明、原始预登记
-provenance.json                上游提交与逐文件来源
+  vector_arx.py                  feature construction, fit, prediction, serialization
+  training.py                    BOPTEST collection and candidate selection
+  refit.py                       preserved-bank recovery and candidate verification
+  forecast.py                    common observation and four-step forecast alignment
+  optimizer.py                   coordinator, local MPC, and fallback
+  validation.py                  fresh closed-loop validation and evidence checks
+  registry.py                    model verification and immutable publication
+src/h3c_baselines/cli.py         command-line interface
+src/h3c/                         minimal shared physics, occupancy, PMV, and program logic
+tests/                           unit, fake-physical, integrity, and extraction regressions
+provenance.json                  upstream commit and verbatim-file hashes
+CHECKSUMS.sha256                 repository-wide release integrity manifest
 ```
 
-`configs/graphs/` 只用于保持原 profile 合同完整，不启用因果控制，也不导入 Agent。原命名空间保留是为了不重命名数值 owner，不表示仍依赖完整 H3C 工程。
+`configs/graphs/` is retained to satisfy the original case-profile contract. The MPC runtime does not use those graphs for causal control.
 
-## 开发检查
+## Development and verification
 
-```powershell
-uv run --no-sync pytest -q
-uv run --no-sync ruff check src tests
-uv run --no-sync ruff format --check src tests
-uv run --no-sync mypy src
+Run the complete offline quality gate from a synchronized checkout:
+
+```text
 uv lock --check
+uv run --no-sync pytest -q
+uv run --no-sync ruff check .
+uv run --no-sync ruff format --check .
+uv run --no-sync mypy --strict src/h3c src/h3c_baselines
+uv build --no-sources
+uv run --no-sync python scripts/verify_checksums.py
+uv run --no-sync building-mpc verify-frozen-suite --mpc-release b89a2138daa2e32867768125ee84cf607927ef615c5f42065487c11b5d9e635c
 ```
 
-测试用 fake physical client，不创建真实 BOPTEST test。测试、静态检查与 frozen-suite 验证通过，并不等同于新仓库已经完成一次真实再训练。本次提取的具体检查记录见 [来源与验证](docs/extraction.md)。
+The test suite uses fake physical clients and blocks outbound network access. Passing it does not claim that a new physical training campaign has been run. See [the extraction record](docs/extraction.md) for the recorded extraction-time checks.
 
-## 常见问题
+Contributions should not silently change a scientific constant. Any method, profile, dependency, or evidence-contract change requires an explicit rationale, new identity, and appropriate tests. See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
 
-**没有 BOPTEST 可以做什么？** 可以读模型、校验冻结套件、运行离线测试和 dry train plan。refit 还需合规的本地原始 bank；不附带合成数据冒充真实数据。
+## Troubleshooting
 
-**为什么仓库没有训练数据？** 原始轨迹、失败证据、临时日志和服务地址不进入新 repo，既保护隐私，也避免把研究归档误当软件发行内容。格式与获取边界见 [数据协议](docs/data_contract.md)。
+| Symptom | Likely cause | Action |
+|---|---|---|
+| `BOPTEST_URL is required` | The environment variable is absent from the launching process. | Export it in the same shell; `.env` is not auto-loaded. |
+| URL or TCP preflight fails | Wrong host/port, credentials/path in URL, Docker networking, firewall, or stopped service. | Probe `/version` and `/testcases` from the same shell and use only the origin, such as `http://127.0.0.1:8000`. |
+| Test selection queues indefinitely | Insufficient or occupied BOPTEST workers. | Provision at least six workers and stop only confirmed orphan tests. |
+| Numerical dependency mismatch | The active environment does not match the exact direct pins. | Run `uv sync --locked --extra dev` in a clean environment. |
+| First CLI or test command starts slowly | `pythermalcomfort` may compile and cache Numba kernels on a new machine. | Allow the first import to complete; subsequent starts in the same environment should be faster. |
+| Dirty-source preflight failure | Physical runs require a committed source identity. | Review and commit intended changes; do not bypass the identity gate. |
+| Existing execution lock | Another campaign may be running, or a hard kill left a stale lock. | Verify the recorded PID and BOPTEST ownership before removing anything. |
+| Existing `models/mpc/<case>` target | The launcher protects previous fitted models. | Archive the entire result with provenance or use a fresh checkout; do not overwrite it. |
+| `METHOD-DEGRADED` with `valid: true` | The release evidence is intact but the recorded controller crossed a method-performance gate. | Report the classification; do not relabel it as corruption or success. |
 
-**连接失败怎么办？** 确保真实启动进程所在网络上下文能连接 `BOPTEST_URL`。CLI 先做 TCP 检查，失败不创建 test。不要把 socket permission denied 当成 MPC 性能或模型问题。
+## Citation and license
 
-**dirty worktree / existing lock 为什么停止？** 真实执行需要可追踪的已提交源码，且不能共享运行写入者。先检查 owner；不要为了通过门禁删除未知锁或覆盖旧结果。
+Citation metadata is provided in [CITATION.cff](CITATION.cff). It intentionally contains no paper citation or DOI that has not yet been assigned. Add the final bibliographic record only when it is authoritative.
 
-**可以调整权重、缩放或逐案例优化吗？** 这次独立化没有进行这些操作。以后改变方法必须生成新的研究身份并说明验证协议；不能让旧 freeze 或历史结果替变化后的实现背书。
+The source code is distributed under the [MIT License](LICENSE). External projects and numerical libraries retain their own licenses; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). BOPTEST software and testcase data are not bundled and remain subject to their upstream terms.
 
-## 许可与隐私
-
-源码延续上游 [MIT License](LICENSE) 和原版权声明；GitHub 仓库设置为 private。BOPTEST 软件、天气及案例数据遵循各自许可。凭据只能通过本地环境提供，`.env` 不提交；本项目没有 LLM 请求入口。不要把原论文仓库或原始实验目录整体复制进这里。
+For security concerns, follow [SECURITY.md](SECURITY.md). For scientific or usability issues, use the repository issue tracker and include the source commit, operating system, Python version, BOPTEST version, testcase, command, and redacted failure evidence.
